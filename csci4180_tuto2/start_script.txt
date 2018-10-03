@@ -1,0 +1,13 @@
+#!/bin/bash
+echo '----------------------------------'
+if [ "`cat /etc/shadow | grep root | cut -d: -f2`" == '!*' ]; then 
+password='123'
+echo "root:$password"|chpasswd
+sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+/etc/init.d/ssh restart > /dev/null
+echo "Your root account is ready."
+echo "Username: root"
+echo "Password: $password"
+echo ''
+echo '----------------------------------'
+fi
