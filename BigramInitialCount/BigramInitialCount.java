@@ -12,34 +12,40 @@ import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
-public class WordLengthCount {
-
+public class BigramInitialCount {
     public static class TokenizerMapper
-            extends Mapper<Object, Text, IntWritable, IntWritable>{
+            extends Mapper<Object, Text, Text, IntWritable>{
 
             private final static IntWritable one = new IntWritable(1);
+            private final String deli = new String("[^a-zA-Z]+");
 
-            Map< IntWritable,IntWritable> hmap = new HashMap< IntWritable,IntWritable>();
+            Map< Text, IntWritable> hmap = new HashMap< Text,IntWritable>();
 
             public void map(Object key, Text value, Context context
                     ) throws IOException, InterruptedException {
-                StringTokenizer itr = new StringTokenizer(value.toString());
-                while (itr.hasMoreTokens()) {
-                    IntWritable wordLength = new IntWritable(itr.nextToken().length());
-                    if (!hmap.containsKey(wordLength)) {
-                        hmap.put(wordLength, one);
+                String[] spl = value.toString().split(deli);
+                int len = spl.length;
+
+                for (int i = 0; i < len-1; i++) {
+                    String str1 = spl[i];
+                    String str2 = spl[i+1];
+                    if (!(str1.length() > 0 && str2.length() > 0)) continue;
+                    String st = Character.toString(str1.charAt(0)) + " " + Character.toString(str2.charAt(0));
+                    Text text = new Text(st);
+
+                    if (!hmap.containsKey(text)) {
+                        hmap.put(text, one);
                     }
                     else {
-                        IntWritable temp = new IntWritable(hmap.get(wordLength).get()+1);
-                        hmap.put(wordLength, temp);
+                        IntWritable temp_num = new IntWritable(hmap.get(text).get()+1);
+                        hmap.put(text, temp_num);
                     }
-                    //context.write(wordLength , one);
                 }
             }
 
             public void cleanup(Context context) throws IOException, InterruptedException {
                 if (!hmap.isEmpty()) {
-                    for (Map.Entry<IntWritable, IntWritable> entry : hmap.entrySet()) {
+                    for (Map.Entry<Text, IntWritable> entry : hmap.entrySet()) {
                         context.write(entry.getKey() , entry.getValue());
                     }
                 }
@@ -48,10 +54,10 @@ public class WordLengthCount {
     }
 
     public static class IntSumReducer
-            extends Reducer<IntWritable,IntWritable,IntWritable,IntWritable> {
+            extends Reducer<Text,IntWritable,Text,IntWritable> {
             private IntWritable result = new IntWritable();
 
-            public void reduce(IntWritable keyLength, Iterable<IntWritable> values,
+            public void reduce(Text keyPair, Iterable<IntWritable> values,
                     Context context
                     ) throws IOException, InterruptedException {
                 int sum = 0;
@@ -59,18 +65,18 @@ public class WordLengthCount {
                     sum += val.get();
                 }
                 result.set(sum);
-                context.write(keyLength, result);
+                context.write(keyPair, result);
             }
     }
 
     public static void main(String[] args) throws Exception {
         Configuration conf = new Configuration();
         Job job = Job.getInstance(conf, "word length count");
-        job.setJarByClass(WordLengthCount.class);
+        job.setJarByClass(BigramInitialCount.class);
         job.setMapperClass(TokenizerMapper.class);
         job.setCombinerClass(IntSumReducer.class);
         job.setReducerClass(IntSumReducer.class);
-        job.setOutputKeyClass(IntWritable.class);
+        job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(IntWritable.class);
         FileInputFormat.addInputPath(job, new Path(args[0]));
         FileOutputFormat.setOutputPath(job, new Path(args[1]));
