@@ -20,16 +20,27 @@ public class BigramInitialCount {
             private final String deli = new String("[^a-zA-Z]+");
 
             Map< Text, IntWritable> hmap = new HashMap< Text,IntWritable>();
+            String last = new String("");
 
             public void map(Object key, Text value, Context context
                     ) throws IOException, InterruptedException {
                 String[] spl = value.toString().split(deli);
                 int len = spl.length;
+                String str1 = new String("");
+                String str2 = new String("");
 
-                for (int i = 0; i < len-1; i++) {
-                    String str1 = spl[i];
-                    String str2 = spl[i+1];
+                for (int i = -1; i < len-1; i++) {
+                    if (i == -1) {
+                        str1 = last;
+                        str2 = spl[0];
+                    }
+                    else {
+                        str1 = spl[i];
+                        str2 = spl[i+1];
+                    }
+
                     if (!(str1.length() > 0 && str2.length() > 0)) continue;
+                    last = str2;
                     String st = Character.toString(str1.charAt(0)) + " " + Character.toString(str2.charAt(0));
                     Text text = new Text(st);
 
@@ -74,7 +85,7 @@ public class BigramInitialCount {
         Job job = Job.getInstance(conf, "Bigram initial count");
         job.setJarByClass(BigramInitialCount.class);
         job.setMapperClass(TokenizerMapper.class);
-        job.setCombinerClass(IntSumReducer.class);
+        //job.setCombinerClass(IntSumReducer.class);
         job.setReducerClass(IntSumReducer.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(IntWritable.class);
