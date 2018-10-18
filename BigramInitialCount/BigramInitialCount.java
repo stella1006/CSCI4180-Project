@@ -20,37 +20,28 @@ public class BigramInitialCount {
             private final String deli = new String("[^a-zA-Z]+");
 
             Map< Text, IntWritable> hmap = new HashMap< Text,IntWritable>();
-            String last = new String("");
+            String first_term = new String("");
 
             public void map(Object key, Text value, Context context
                     ) throws IOException, InterruptedException {
                 String[] spl = value.toString().split(deli);
-                int len = spl.length;
-                String str1 = new String("");
-                String str2 = new String("");
+                String second_term = new String("");
+                for (String item : spl) {
+                    if (item.length() <= 0) continue;
+                    if (first_term.length() > 0) {
+                        second_term = item;
+                        String st = Character.toString(first_term.charAt(0)) + " " + Character.toString(second_term.charAt(0));
+                        Text text = new Text(st);
 
-                for (int i = -1; i < len-1; i++) {
-                    if (i == -1) {
-                        str1 = last;
-                        str2 = spl[0];
+                        if (!hmap.containsKey(text)) {
+                            hmap.put(text, one);
+                        }
+                        else {
+                            IntWritable temp_num = new IntWritable(hmap.get(text).get()+1);
+                            hmap.put(text, temp_num);
+                        }
                     }
-                    else {
-                        str1 = spl[i];
-                        str2 = spl[i+1];
-                    }
-
-                    if (!(str1.length() > 0 && str2.length() > 0)) continue;
-                    last = str2;
-                    String st = Character.toString(str1.charAt(0)) + " " + Character.toString(str2.charAt(0));
-                    Text text = new Text(st);
-
-                    if (!hmap.containsKey(text)) {
-                        hmap.put(text, one);
-                    }
-                    else {
-                        IntWritable temp_num = new IntWritable(hmap.get(text).get()+1);
-                        hmap.put(text, temp_num);
-                    }
+                    first_term = item;
                 }
             }
 

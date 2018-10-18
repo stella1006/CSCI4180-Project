@@ -22,25 +22,25 @@ public class WordCount {
 			System.err.println("Require Input Arguments: [Input Path] [Output Path]");
 			System.exit(1);
 		}
-			
+
 		String inputFile = args[0];
     	String outputFile = args[1];
-    
+
 		// Create a Java Spark Context.
     	SparkConf conf = new SparkConf().setAppName("WordCount");
 	conf.set("spark.testing.memory", "2147480000");
 		JavaSparkContext sc = new JavaSparkContext(conf);
-    	
+
 		// Load our input data.
     	JavaRDD<String> input = sc.textFile(inputFile);
-    
+
 		// Split up into words.
         JavaRDD<String> words = input.flatMap(
             new FlatMapFunction<String, String>() {
                 public Iterable<String> call(String x) {
                     return Arrays.asList(x.split(" "));
         }});
-    	
+
 		// the mapToPair function get the  words rdd and produce a <word,num> pairRDD
 		// the reduceByKey function counts the <words, num> pariRDD and produce a new pairRDD
         JavaPairRDD<String, Integer> counts = words.mapToPair(
@@ -52,9 +52,9 @@ public class WordCount {
 
         // Save the result back to the specific output file.
         counts.saveAsTextFile(outputFile);
-		
+
 		//Below are wordcount code that use Lambda Expression
-		/*		
+		/*
 		JavaPairRDD<String, Integer> counts = input.flatMap(x -> Arrays.asList(x.split(" ")))
 							    .mapToPair(x -> new Tuple2<String, Integer>(x,1))
 							    .reduceByKey((x, y) -> x+y);
