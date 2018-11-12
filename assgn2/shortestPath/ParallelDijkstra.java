@@ -141,6 +141,7 @@ public class ParallelDijkstra {
                     // }
 
                     IntWritable d_min = new IntWritable((Integer.MAX_VALUE));
+                    IntWritable rec_prev = new IntWritable(0);
                     PDNodeWritable M = new PDNodeWritable();
                     for (PDNodeWritable node : values) {
                         if (node.getNodeId().get() != 0) {
@@ -150,13 +151,56 @@ public class ParallelDijkstra {
                         }
                         else if (node.getDistance().get() < d_min.get()) {
                             d_min.set(node.getDistance().get());
+                            rec_prev.set(node.getPrevId().get());
                         }
                     }
                     if (d_min.get() < M.getDistance().get()) {
                         context.getCounter(ReachCounter.COUNT).increment(1);
                         M.setDistance(d_min);
+                        M.setPrevId(rec_prev);
                     }
                     context.write(NullWritable.get(), M);
+                }
+        }
+
+    public static class FinalReducer
+            extends Reducer<IntWritable,PDNodeWritable,NullWritable,Text> {
+
+            public void reduce(IntWritable key, Iterable<PDNodeWritable> values,
+                    Context context
+                    ) throws IOException, InterruptedException {
+                    // for (PDNodeWritable val : values) {
+                    //     context.write(key, val);
+                    // }
+                    IntWritable d_min = new IntWritable((Integer.MAX_VALUE));
+                    IntWritable rec_prev = new IntWritable(0);
+                    PDNodeWritable M = new PDNodeWritable();
+                    for (PDNodeWritable node : values) {
+                        if (node.getNodeId().get() != 0) {
+                            M.setNode(node);
+                        }
+                        else if (node.getDistance().get() < d_min.get()) {
+                            d_min.set(node.getDistance().get());
+                            rec_prev.set(node.getPrevId().get());
+                        }
+                    }
+                    if (d_min.get() < M.getDistance().get()) {
+                        context.getCounter(ReachCounter.COUNT).increment(1);
+                        M.setDistance(d_min);
+                        M.setPrevId(rec_prev);
+                    }
+                    Text result = new Text("");
+                    if (M.getDistance().get() != Integer.MAX_VALUE) {
+                        String prev = "";
+                        if (M.getPrevId().get() == 0) {
+                            prev = "nil";
+                        } else {
+                            prev = M.getPrevId().toString();
+                        }
+                        result.set(M.getNodeId().toString()+ " " + M.getDistance().toString() + " " + prev);
+                        context.write(NullWritable.get(), new Text(result));
+                    }
+                    //context.write(NullWritable.get(), M);
                 }
     }
 
@@ -193,14 +237,21 @@ public class ParallelDijkstra {
 
         job2.setMapperClass(DijkstraMapper.class);
         //job2.setCombinerClass(DijkstraReducer.class);
-        job2.setReducerClass(DijkstraReducer.class);
         job2.setMapOutputKeyClass(IntWritable.class);
         job2.setMapOutputValueClass(PDNodeWritable.class);
         job2.setOutputKeyClass(NullWritable.class);
-        job2.setOutputValueClass(PDNodeWritable.class);
         job2.setInputFormatClass(PDNodeInputFormat.class);
         FileInputFormat.addInputPath(job2, new Path("/lzr/temp/out_0"));
-        FileOutputFormat.setOutputPath(job2, new Path("/lzr/temp/out_1"));
+
+        if (iterations == 1) {
+            FileOutputFormat.setOutputPath(job2, new Path(args[1]));
+            job2.setReducerClass(FinalReducer.class);
+            job2.setOutputValueClass(Text.class);
+        } else {
+            FileOutputFormat.setOutputPath(job2, new Path("/lzr/temp/out_1"));
+            job2.setReducerClass(DijkstraReducer.class);
+            job2.setOutputValueClass(PDNodeWritable.class);
+        }
 
         //System.exit(job.waitForCompletion(true) ? 0 : 1);
         ControlledJob controlledJob1 = new ControlledJob(conf);
@@ -238,23 +289,26 @@ public class ParallelDijkstra {
         }
         int flag = 0;
         for (int i = 1; i < iterations; i++) {
+            if (flag == 2) break;
             String last_out = "/lzr/temp/out_" + Integer.toString(i);
             String next_out = "";
-            if (i == iterations-1 || flag == 0) {
-                next_out = args[1];
-            } else {
-                next_out = "/lzr/temp/out_" + Integer.toString(i+1);
-            }
 
             Job job_new = new Job(conf, "ParallelDijkstra_" + i);
             job_new.setJarByClass(ParallelDijkstra.class);
             job_new.setMapperClass(DijkstraMapper.class);
             //job_new.setCombinerClass(DijkstraReducer.class);
-            job_new.setReducerClass(DijkstraReducer.class);
+            if (i == iterations-1 || flag == 1) {
+                next_out = args[1];
+                job_new.setReducerClass(FinalReducer.class);
+                job_new.setOutputValueClass(Text.class);
+            } else {
+                next_out = "/lzr/temp/out_" + Integer.toString(i+1);
+                job_new.setReducerClass(DijkstraReducer.class);
+                job_new.setOutputValueClass(PDNodeWritable.class);
+            }
             job_new.setMapOutputKeyClass(IntWritable.class);
             job_new.setMapOutputValueClass(PDNodeWritable.class);
             job_new.setOutputKeyClass(NullWritable.class);
-            job_new.setOutputValueClass(PDNodeWritable.class);
             job_new.setInputFormatClass(PDNodeInputFormat.class);
 
             FileInputFormat.addInputPath(job_new, new Path(last_out));
@@ -263,24 +317,10 @@ public class ParallelDijkstra {
 
             temp_counts = job_new.getCounters().findCounter(ParallelDijkstra.ReachCounter.COUNT ).getValue();
             System.out.println("Finish_" + i + "_" + temp_counts);
-            if (temp_counts == 0) {
+            if (flag == 1) flag = 2;
+            if (temp_counts == 0 && flag == 0) {
                 flag = 1;
             }
         }
-        // }
-        // } else {
-        //     int i=1;
-        //     while (true) {
-        //         String last_out = "/lzr/temp/out_" + Integer.toString(i);
-        //         String next_out = "/lzr/temp/out_" + Integer.toString(i+1);
-        //         FileInputFormat.addInputPath(job2, new Path(last_out));
-        //         FileOutputFormat.setOutputPath(job2, new Path(next_out));
-        //         job2.waitForCompletion(true);
-        //         temp_countsjob2.getCounters().findCounter(ParallelDijkstra.ReachCounter.COUNT ).getValue();
-        //         if (temp_counts == 0) break;
-        //         i++;
-        //     }
-        // }
-        //}
     }
 }

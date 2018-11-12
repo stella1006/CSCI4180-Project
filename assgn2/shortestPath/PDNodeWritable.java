@@ -84,7 +84,7 @@ public class PDNodeWritable implements Writable {
         return this.prevId;
     }
     public Text getText() {
-        updateText();
+        //updateText();
         return this.text;
     }
     public ArrayList<ArrayList<IntWritable>> getAdjList() {
@@ -102,6 +102,16 @@ public class PDNodeWritable implements Writable {
         this.distance.set(dis.get());
         String new_dis_str = " " + dis.toString() + ";";
         String new_text = old_text.replace(old_dis_str, new_dis_str);
+        this.text.set(new_text);
+    }
+
+    public void setPrevId(IntWritable prev) {
+        String old_str = this.nodeId.toString() + " " + this.prevId.toString() + " " + this.distance.toString() + ";";
+        String old_text = this.text.toString();
+
+        this.prevId.set(prev.get());
+        String new_str = this.nodeId.toString() + " " + prev.toString() + " " + this.distance.toString() + ";";
+        String new_text = old_text.replace(old_str, new_str);
         this.text.set(new_text);
     }
 
@@ -129,10 +139,13 @@ public class PDNodeWritable implements Writable {
     }
 
     public void addAdjList(ArrayList<IntWritable> item) {
-        this.AdjList.add(item);
-        String temp_str = this.text.toString();
-        if (temp_str.charAt(temp_str.length()-1) != ';') temp_str+= ",";
-        this.text.set(temp_str+ "(" + item.get(0).toString() + " " + item.get(1).toString() + ")");
+        if (item.get(0).get() != this.nodeId.get()) {
+            this.AdjList.add(item);
+            String temp_str = this.text.toString();
+            if (temp_str.charAt(temp_str.length()-1) != ';') temp_str+= ",";
+            this.text.set(temp_str+ "(" + item.get(0).toString() + " " + item.get(1).toString() + ")");
+        }
+
     }
 
     @Override

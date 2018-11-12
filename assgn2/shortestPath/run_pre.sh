@@ -21,18 +21,20 @@
 if [ "$#" -eq 1 ]; then
     hadoop fs -rm /lzr/input/*
     hadoop fs -put ./twitter/twitter_dist_1.txt /lzr/input/
-    hadoop fs -put ./twitter/twitter_dist_2.txt /lzr/input/
-    hadoop fs -put ./twitter/twitter_dist_3.txt /lzr/input/
+    #hadoop fs -put ./twitter/twitter_dist_2.txt /lzr/input/
+    #hadoop fs -put ./twitter/twitter_dist_3.txt /lzr/input/
 else
     hadoop fs -rm /lzr/input/*
     hadoop fs -put test.txt /lzr/input/
 fi
 
-rm ./pre_output/*
-hadoop fs -rm -r /lzr/output
-hadoop fs -rm -r /lzr/temp/*
+rm -rf ./output/*
+rm -rf ./temp_out/*
+hadoop fs -rm -r  /lzr/output
+hadoop fs -rm -r  /lzr/temp/*
 hadoop com.sun.tools.javac.Main PDNodeWritable.java PDPreProcess.java ParallelDijkstra.java
 jar cf pd.jar PD*.class ParallelDijkstra*.class
-hadoop jar pd.jar ParallelDijkstra /lzr/input /lzr/output 1 6
+time hadoop jar pd.jar ParallelDijkstra /lzr/input /lzr/output 1173 0
 # hadoop jar pd.jar ParallelDijkstra /lzr/input /lzr/output [src] [iterations]
-hadoop fs -get /lzr/output/* pre_output/
+hadoop fs -get /lzr/output/* output/
+hadoop fs -get /lzr/temp/* temp_out/
