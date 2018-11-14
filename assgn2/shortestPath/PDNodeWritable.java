@@ -3,6 +3,7 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.ArrayWritable;
+import java.util.StringTokenizer;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -53,13 +54,30 @@ public class PDNodeWritable implements Writable {
     }
 
     public void setFromText(String txt) {
+        // String deli = "[^0-9]+";
+        // StringTokenizer itr = new StringTokenizer(txt, ";");
+        // int count = itr.countTokens();
+        // this.nodeId.set(Integer.parseInt(itr.nextToken()));
+        // this.prevId.set(Integer.parseInt(itr.nextToken()));
+        // this.distance.set(Integer.parseInt(itr.nextToken()));
+        // this.text.set(txt);
+        // if (count > 4) {
+        //     this.AdjList = new ArrayList<ArrayList<IntWritable>>();
+        //     for (int i = 3; i < count; i+=2) {
+        //         String first = itr.nextToken();
+        //         if (Integer.parseInt(first) != nodeId.get()) {
+        //             ArrayList<IntWritable> temp = new ArrayList<IntWritable>();
+        //             temp.add(new IntWritable(Integer.parseInt(first)));
+        //             temp.add(new IntWritable(Integer.parseInt(itr.nextToken())));
+        //             this.AdjList.add(temp);
+        //         }
+        //     }
+        // }
         String adj[] = txt.toString().split("[^0-9]+");
-        //String adj[] = list[1].split("[^1-9]");
         this.nodeId.set(Integer.parseInt(adj[0]));
         this.prevId.set(Integer.parseInt(adj[1]));
         this.distance.set(Integer.parseInt(adj[2]));
         this.text.set(txt);
-        //if (text.toString().charAt(0) == '-') this.nodeId.set(this.nodeId.get()*(-1));
         if (adj.length > 4) {
             this.AdjList = new ArrayList<ArrayList<IntWritable>>();
             for (int i = 3; i < adj.length; i+=2) {

@@ -28,11 +28,17 @@ public class PDPreProcess extends Mapper<Object, Text, PDNodeWritable, NullWrita
         @Override
         public void map(Object key, Text value, Context context
                 ) throws IOException, InterruptedException {
-            String[] list=value.toString().split(" ");
-            Integer k = Integer.parseInt(list[0]);
+            // String[] list=value.toString().split(" ");
+            // Integer k = Integer.parseInt(list[0]);
+            // IntWritable kk = new IntWritable(k);
+            // IntWritable des = new IntWritable(Integer.parseInt(list[1]));
+            // IntWritable weights = new IntWritable(Integer.parseInt(list[2]));
+            StringTokenizer itr = new StringTokenizer(value.toString());
+            Integer k = Integer.parseInt(itr.nextToken());
             IntWritable kk = new IntWritable(k);
-            IntWritable des = new IntWritable(Integer.parseInt(list[1]));
-            IntWritable weights = new IntWritable(Integer.parseInt(list[2]));
+            IntWritable des = new IntWritable(Integer.parseInt(itr.nextToken()));
+            IntWritable weights = new IntWritable(Integer.parseInt(itr.nextToken()));
+
             //String outstring = "(" + Integer.toString(des) + " " + Integer.toString(weights) + ")";
             flag.put(kk, 1);
             flag.put(des, 1);
