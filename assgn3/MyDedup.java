@@ -22,14 +22,21 @@ class ByteArrayEntry {
     public String shaString;
     public int index;
 
-    public ByteArrayEntry(byte[] data, int index)
+    public ByteArrayEntry(byte[] data, String str, int index)
     {
         if (data == null)
         {
             throw new NullPointerException();
         }
         this.btArr = data;
-        this.shaString = "";
+        this.shaString = str;
+        this.index = index;
+    }
+
+    public ByteArrayEntry(String str, int index)
+    {
+        this.btArr = null;
+        this.shaString = str;
         this.index = index;
     }
 
@@ -39,145 +46,31 @@ class ByteArrayEntry {
 
     @Override
     public int hashCode() {
-        return Arrays.hashCode(btArr);
+        return this.shaString.hashCode();
     }
 }
-class FileRecipe {
-    public int NumOfFile;
-    public HashMap<String, ArrayList<ByteArrayEntry> > fileRecipe;
 
-    FileRecipe () {
-        NumOfFile = 0;
-        fileRecipe = new HashMap<String, ArrayList<ByteArrayEntry> >();
-    }
-
-    void updateFileRecipe(String str, ArrayList<ByteArrayEntry> list) {
-        fileRecipe.put(str, list);
-        NumOfFile++;
-    }
-
-    ArrayList<ByteArrayEntry> getChunks(String filename) {
-        return fileRecipe.get(filename);
-    }
-
-    int loadFileChunks(String path) {
-        //get fileRecipe
-        String  thisLine = null;
-        try {
-            File aDirectory = new File(path);
-            String[] filesInDir = aDirectory.list();
-
-            for (int i = 0; i < filesInDir.length; i++) {
-                String[] spl = filesInDir[i].split("_");
-
-                File file = new File(filesInDir[i]);
-    			InputStream is = new FileInputStream(file);
-    			byte[] bytes = new byte[(int)file.length()] ;
-                ArrayList<ByteArrayEntry> list;
-    			is.close();
-
-                if (!fileRecipe.containsKey(spl[0])) {
-                    list = new ArrayList<ByteArrayEntry>();
-                } else {
-                    list = fileRecipe.get(spl[0]);
-                }
-
-                ByteArrayEntry byteEntry = new ByteArrayEntry(bytes, Integer.parseInt(spl[1]));
-                byteEntry.setString(spl[2]);
-                list.add(byteEntry);
-                fileRecipe.put(spl[0], list);
-            }
-            // BufferedReader br = new BufferedReader(new FileReader(filename));
-            // while ((thisLine = br.readLine()) != null) {
-            //     StringTokenizer itr = new StringTokenizer(thisLine);
-            //     String name = itr.nextToken();
-            //     ArrayList<ByteArrayEntry> temp = new ArrayList<ByteArrayEntry>();
-            //     while (itr.hasMoreTokens()) {
-            //         byte[] byt = itr.nextToken().getBytes();
-            //         ByteArrayEntry chk = new ByteArrayEntry(byt);
-            //         temp.add(chk);
-            //     }
-            //     fileRecipe.put(name, temp);
-            // }
-        } catch (FileNotFoundException e) {
-            return -1;
-        } catch (IOException e) {
-        	e.printStackTrace();
-        }
-        return 0;
-    }
-
-    void reconstructFile(String path, String filename) throws IOException {
-        ArrayList<ByteArrayEntry> list = fileRecipe.get(filename);
-
-        Comparator<ByteArrayEntry> com = new Comparator<ByteArrayEntry>() {
-			@Override
-			public int compare(ByteArrayEntry o1, ByteArrayEntry o2) {
-				// TODO Auto-generated method stub
-				if(o1.index < o2.index) {
-                    return 1;
-                } else {
-                    return -1;
-                }
-			}
-		};
-        Collections.sort(list,com);
-
-        String output_name = path + filename;
-        StringBuffer sb = new StringBuffer();
-        for (ByteArrayEntry chk: list) {
-            sb.append(new String(chk.btArr));
-        }
-        FileWriter fw = new FileWriter(output_name);
-        fw.write(sb.toString());
-        fw.close();
-    }
-
-    void saveFileChunks(String path, String filename) throws IOException {
-        // FileWriter fw = new FileWriter(filename);
-
-        Iterator iter2 = fileRecipe.entrySet().iterator();
-        //StringBuffer sb = new StringBuffer();
-        while (iter2.hasNext()) {
-
-
-            Map.Entry entry = (Map.Entry)iter2.next();
-            ArrayList<ByteArrayEntry> list = (ArrayList<ByteArrayEntry>)entry.getValue();
-
-            //sb.append(String.valueOf(entry.getKey()));
-            for (ByteArrayEntry chk: list) {
-                String output_name = path + filename + "_" + chk.index + "_" + chk.shaString;
-                FileWriter fw = new FileWriter(output_name);
-                fw.write(new String(chk.btArr));
-                fw.close();
-                // sb.append(" ");
-                // sb.append(chk.shaString);
-            }
-            // sb.append("\n");
-
-
-        }
-
-    }
-}
 class Indexing {
     public int NumOfCheckSum;
     public HashMap<String, Integer> checkSumMap;
 
+    public int NumOfFile;
+    public HashMap<String, ArrayList<ByteArrayEntry> > fileRecipe;
+
     Indexing () {
         NumOfCheckSum = 0;
         checkSumMap = new HashMap<String, Integer>();
+        NumOfFile = 0;
+        fileRecipe = new HashMap<String, ArrayList<ByteArrayEntry> >();
     }
 
-    void updateCheckSumMap(String chSum) {
+    int updateCheckSumMap(String chSum) {
         if (!this.checkSumMap.containsKey(chSum)) {
             this.checkSumMap.put(chSum,1);
             this.NumOfCheckSum++;
+            return 1;
         }
-        // else {
-        //     int num = checkSumMap.get(chSum) + 1;
-        //     checkSumMap.put(chSum, num);
-        // }
+        return 0;
     }
 
     int loadIndexing(String filename) {
@@ -188,17 +81,38 @@ class Indexing {
             if ((thisLine = br.readLine()) != null) {
                 this.NumOfCheckSum = Integer.parseInt(thisLine);
             }
-            // //get NumOfFile
-            // if ((thisLine = br.readLine()) != null) {
-            //     this.NumOfFile = Integer.parseInt(thisLine);
-            // }
+
+            //get NumOfFile
+            if ((thisLine = br.readLine()) != null) {
+                this.NumOfFile = Integer.parseInt(thisLine);
+            }
+
             //get checkSum
+            for (int i = 0; i < this.NumOfCheckSum; i++) {
+                thisLine = br.readLine();
+                this.checkSumMap.put(thisLine, 1);
+            }
+
+            for (int i = 0; i < this.NumOfFile; i++) {
+                String name = br.readLine();
+                thisLine = br.readLine();
+                //System.out.println("num: " + thisLine);
+                Integer num = Integer.parseInt(thisLine);
+                ArrayList<ByteArrayEntry> list = new ArrayList<ByteArrayEntry>();
+                for (int j = 0; j < num; j++) {
+                    thisLine = br.readLine();
+                    ByteArrayEntry arrTemp = new ByteArrayEntry(thisLine, j);
+                    list.add(arrTemp);
+                }
+                this.fileRecipe.put(name, list);
+            }
             while ((thisLine = br.readLine()) != null) {
                 // StringTokenizer itr = new StringTokenizer(thisLine);
                 //while (itr.hasMoreTokens()) {
                 this.checkSumMap.put(thisLine, 1);
                 //}
             }
+
             br.close();
         } catch (FileNotFoundException e) {
             return -1;
@@ -209,11 +123,16 @@ class Indexing {
     }
 
     void saveIndexing(String filename) throws IOException {
+        FileWriter els = new FileWriter("./test.txt");
+        els.write("\0\0\0\0\0\0\0\0\0\0\0");
+        els.write("\n");
+        els.close();
+
         FileWriter fw = new FileWriter(filename);
         fw.write(Integer.toString(NumOfCheckSum));
         fw.write("\n");
-        // fw.write(Integer.toString(NumOfFile));
-        // fw.write("\n");
+        fw.write(Integer.toString(NumOfFile));
+        fw.write("\n");
 
         Iterator iter = this.checkSumMap.entrySet().iterator();
         while (iter.hasNext()) {
@@ -222,8 +141,99 @@ class Indexing {
             fw.flush();
         }
 
+        Iterator iter2 = this.fileRecipe.entrySet().iterator();
+        while (iter2.hasNext()) {
+            Map.Entry entry = (Map.Entry)iter2.next();
+            ArrayList<ByteArrayEntry> list = (ArrayList<ByteArrayEntry>)entry.getValue();
+
+            fw.write((entry.getKey()).toString() + "\n");
+            fw.write(Integer.toString(list.size()) + "\n");
+            fw.flush();
+
+            for (ByteArrayEntry byArr :list) {
+                fw.write(byArr.shaString + "\n");
+            }
+            fw.flush();
+
+        }
     	fw.close();
     }
+    void updateFileRecipe(String str, ArrayList<ByteArrayEntry> list) {
+        if (!fileRecipe.containsKey(str)) {
+            NumOfFile++;
+        }
+        fileRecipe.put(str, list);
+
+    }
+
+    // int loadFileChunks(String path) {
+    //     //get fileRecipe
+    //     String  thisLine = null;
+    //     try {
+    //         File aDirectory = new File(path);
+    //         String[] filesInDir = aDirectory.list();
+    //
+    //         for (int i = 0; i < filesInDir.length; i++) {
+    //             String[] spl = filesInDir[i].split("_");
+    //
+    //             File file = new File(filesInDir[i]);
+    // 			InputStream is = new FileInputStream(file);
+    // 			byte[] bytes = new byte[(int)file.length()] ;
+    //             ArrayList<ByteArrayEntry> list;
+    // 			is.close();
+    //
+    //             if (!this.fileRecipe.containsKey(spl[0])) {
+    //                 list = new ArrayList<ByteArrayEntry>();
+    //             } else {
+    //                 list = this.fileRecipe.get(spl[0]);
+    //             }
+    //
+    //             ByteArrayEntry byteEntry = new ByteArrayEntry(spl[2], Integer.parseInt(spl[1]));
+    //             //byteEntry.setString(spl[2]);
+    //             list.add(byteEntry);
+    //             this.fileRecipe.put(spl[0], list);
+    //         }
+    //     } catch (FileNotFoundException e) {
+    //         return -1;
+    //     } catch (IOException e) {
+    //     	e.printStackTrace();
+    //     }
+    //     return 0;
+    // }
+
+    void reconstructFile(String path, String filename, String output_name) throws IOException {
+        // ArrayList<ByteArrayEntry> list = fileRecipe.get(filename);
+        //
+        // Comparator<ByteArrayEntry> com = new Comparator<ByteArrayEntry>() {
+		// 	@Override
+		// 	public int compare(ByteArrayEntry o1, ByteArrayEntry o2) {
+		// 		// TODO Auto-generated method stub
+		// 		if(o1.index < o2.index) {
+        //             return 1;
+        //         } else {
+        //             return -1;
+        //         }
+		// 	}
+		// };
+        // Collections.sort(list,com);
+        ArrayList<ByteArrayEntry> list = this.fileRecipe.get(filename);
+        //System.out.println(list.size());
+        StringBuffer sb = new StringBuffer();
+        for (ByteArrayEntry chk: list) {
+            String input_name = path + chk.shaString;
+            File file = new File(input_name);
+			InputStream is = new FileInputStream(file);
+			byte[] bytes = new byte[(int)file.length()];
+            int len = is.read(bytes);
+			is.close();
+            sb.append(new String(bytes));
+        }
+
+        FileWriter fw = new FileWriter(output_name);
+        fw.write(sb.toString());
+        fw.close();
+    }
+
 }
 
 public class MyDedup {
@@ -318,7 +328,7 @@ public class MyDedup {
         byte[] bytesChk = new byte[sec-bound+1];
         System.arraycopy(bytes, bound, bytesChk, 0, sec-bound+1);
 
-        ByteArrayEntry res = new ByteArrayEntry(bytesChk, index);
+        // ByteArrayEntry res = new ByteArrayEntry(bytesChk, index);
         //list.add(chk);
         //get SHA value
         md.update(bytesChk, 0, sec-bound+1);
@@ -328,10 +338,18 @@ public class MyDedup {
         for (int i = 0; i < checksumBytes.length; i++) {
             sb2.append(Integer.toString((checksumBytes[i] & 0xff) + 0x100, 16).substring(1));
         }
-        res.setString(sb2.toString());
+        ByteArrayEntry res = new ByteArrayEntry(bytesChk, sb2.toString(), index);
+        // res.setString(sb2.toString());
         //res.add(new ByteArrayEntry(checksumBytes));
         //indexing.update(chS);
         return res;
+    }
+
+    public static void uploadChunk(String path, ByteArrayEntry byteEntry) throws IOException {
+        String output_name = path +  byteEntry.shaString;
+        FileWriter fw = new FileWriter(output_name);
+        fw.write(new String(byteEntry.btArr));
+        fw.close();
     }
 
     public static void main(String[] args) {
@@ -360,7 +378,7 @@ public class MyDedup {
             Indexing indexing = new Indexing();
             indexing.loadIndexing(indexFileName);
             indexing.saveIndexing("./mid.index");
-            FileRecipe fr = new FileRecipe();
+            //FileRecipe fr = new FileRecipe();
             //fr.loadFileChunks("./data/");
             //fr.reconstructFile("./mid/", fileToUpload);
             //indexing.saveIndexing("./savefile.index");
@@ -394,19 +412,24 @@ public class MyDedup {
                         System.arraycopy(bytes, fir, windows, 0, winSize);
                         //System.out.print(Integer.toString(winSize));
                         //System.out.println(new String(windows));
-
+                        //zero chunks
                         if (byteArrayCheck(windows) == true) {
+                            System.out.println(Integer.toString(1));
                             int posNonZero = getNonZeroByte(bytes, sec);
                             //if (posNonZero == maxChSize) {
-                            sec = len;
-                            fir = len - winSize + 1;
+                            sec = posNonZero;
+                            //fir = sec - winSize + 1;
                             if (posNonZero == len) {
                                 posNonZero--;
                             }
-                            ByteArrayEntry res = chunking(md, bytes, fir, posNonZero, index++);
+                            ByteArrayEntry res = chunking(md, bytes, bound, posNonZero, index++);
                             list.add(res);
-                            indexing.updateCheckSumMap(res.shaString);
-                            bound = posNonZero;
+                            int temStatus = indexing.updateCheckSumMap(res.shaString);
+                            if (temStatus == 1) {
+                                uploadChunk("./data/", res);
+                            }
+                            bound = posNonZero+1;
+
                             continue;
                             //}
                         }
@@ -418,28 +441,35 @@ public class MyDedup {
                             //chunking
                             ByteArrayEntry res = chunking(md, bytes, bound, sec, index++);
                             list.add(res);
-                            indexing.updateCheckSumMap(res.shaString);
-                            bound = sec;
+                            int temStatus = indexing.updateCheckSumMap(res.shaString);
+                            if (temStatus == 1) {
+                                uploadChunk("./data/", res);
+                            }
+                            bound = sec+1;
+                            fir = sec+1;
+                            sec = fir + winSize - 1;
                         } else {
                             pos++;
+                            fir++;
+                            sec++;
                         }
-                        fir++;
-                        sec++;
+
                     }
                     if (bound+1 < len) {
-                        if (bound == 0) {
-                            bound = -1;
-                        }
-                        ByteArrayEntry res = chunking(md, bytes, bound+1, len-1, index++);
+                        ByteArrayEntry res = chunking(md, bytes, bound, len-1, index++);
                         list.add(res);
-                        indexing.updateCheckSumMap(res.shaString);
+                        int temStatus = indexing.updateCheckSumMap(res.shaString);
+                        if (temStatus == 1) {
+                            uploadChunk("./data/", res);
+                        }
                     }
                     //sb.setLength(0);
     			}
     			is.close();
-                fr.updateFileRecipe(fileToUpload, list);
-                fr.saveFileChunks("./data/", fileToUpload);
+                indexing.updateFileRecipe(fileToUpload, list);
+                //fr.saveFileChunks("./data/", fileToUpload);
                 indexing.saveIndexing(indexFileName);
+                indexing.reconstructFile("./data/", fileToUpload, "./construction.txt");
 
             } catch (FileNotFoundException e) {
     			e.printStackTrace();
