@@ -286,7 +286,7 @@ class Indexing {
 
     void deleteFile(String path, String filename) {
         if (!this.fileRecipe.containsKey(filename)) {
-            System.out.println(filename + "has not been uploaded");
+            System.out.println(filename + " has not been uploaded");
         } else {
             ArrayList<ByteArrayEntry> list = this.fileRecipe.get(filename);
             for (ByteArrayEntry chk: list) {
@@ -322,6 +322,13 @@ class Indexing {
             this.NumOfFile--;
         }
 
+    }
+    boolean chechFileExist(String filename) {
+        if (this.fileRecipe.containsKey(filename)) {
+            System.out.println(filename + " has been uploaded. Please do not upload again");
+            return true;
+        }
+        return false;
     }
 
     void getReport() {
@@ -468,6 +475,7 @@ public class MyDedup {
                     //get mydedup.index, or create a new one
                     Indexing indexing = new Indexing();
                     indexing.loadIndexing(indexFileName);
+                    if (indexing.chechFileExist(fileToUpload)) System.exit(1);
                     File file = new File(fileToUpload);
                     //BufferedReader is = new BufferedReader(new InputStreamReader(new FileInputStream(file),"UTF16"));
                     InputStream is = new BufferedInputStream(new FileInputStream(file));
@@ -577,10 +585,8 @@ public class MyDedup {
                         // }
                     }
                     is.close();
-                    System.out.println("saving chunkings");
                     indexing.updateFileRecipe(fileToUpload, list);
                     //fr.saveFileChunks("./data/", fileToUpload);
-                    System.out.println("indexing");
                     indexing.saveIndexing(indexFileName);
                     //indexing.reconstructFile("./data/", fileToUpload, "./construction.txt");
 
