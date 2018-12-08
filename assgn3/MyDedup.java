@@ -261,7 +261,7 @@ class Indexing {
                 } else {
                     String input_name = path + chk.shaString;
                     File file = new File(input_name);
-        			InputStream is = new FileInputStream(file);
+        			InputStream is = new BufferedInputStream(new FileInputStream(file));
         			byte[] bytes = new byte[(int)file.length()];
                     int len = is.read(bytes);
         			is.close();
@@ -468,8 +468,9 @@ public class MyDedup {
                     //get mydedup.index, or create a new one
                     Indexing indexing = new Indexing();
                     indexing.loadIndexing(indexFileName);
-
-                    InputStream is = new FileInputStream(fileToUpload);
+                    File file = new File(fileToUpload);
+                    //BufferedReader is = new BufferedReader(new InputStreamReader(new FileInputStream(file),"UTF16"));
+                    InputStream is = new BufferedInputStream(new FileInputStream(file));
                     byte[] bufferMax = new byte[maxChSize];
                     byte[] windows = new byte[minChSize];
                     byte[] sByte = new byte[1];
@@ -490,6 +491,7 @@ public class MyDedup {
                             fir = 0;
                             if (!lastZero) {
                                 if((rLen = is.read(windows))!=-1) {
+                                    //System.out.println(new String(windows));
                                     winSize = rLen;
                                     System.arraycopy(windows, 0, bufferMax, 0, winSize);
                                     allLen = rLen;
@@ -575,8 +577,10 @@ public class MyDedup {
                         // }
                     }
                     is.close();
+                    System.out.println("saving chunkings");
                     indexing.updateFileRecipe(fileToUpload, list);
                     //fr.saveFileChunks("./data/", fileToUpload);
+                    System.out.println("indexing");
                     indexing.saveIndexing(indexFileName);
                     //indexing.reconstructFile("./data/", fileToUpload, "./construction.txt");
 
