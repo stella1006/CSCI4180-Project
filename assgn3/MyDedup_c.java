@@ -347,6 +347,7 @@ class Indexing {
 
 public class MyDedup {
     public static final String storageConnectionString = "";
+    public static HashMap<String, Integer>  myPowerCom = new HashMap<String, Integer>();
 
     static {
       System.setProperty("https.proxyHost", "proxy.cse.cuhk.edu.hk");
@@ -395,19 +396,35 @@ public class MyDedup {
         }
         return res;
     }
+    public static void getPowerCom(int minChSize, int base, int modulus) {
+        //HashMap<String, Integer> res = new HashMap<String, Integer>();
+        for (int i = 0; i <= minChSize; i++) {
+            int temp = power(base, minChSize-i, modulus);
+            String str = Integer.toString(base)+" "+Integer.toString(minChSize-i)+" "+Integer.toString(modulus);
+            //System.out.println(str+" "+Integer.toString(temp));
+            myPowerCom.put(str, temp);
+        }
+        //return res;
+    }
 
     public static int RFPAlgoritm(byte bytes[], int index, int prev, int minChSize, int base, int modulus) {
         int result = 0;
         if (index == 0) {
             int sum = 0;
             for (int i = 0; i < minChSize; i++) {
-                sum += ((bytes[i] % modulus) * (power(base, minChSize-i-1, modulus))) % modulus;
+                String str = Integer.toString(base)+" "+Integer.toString(minChSize-i-1)+" "+Integer.toString(modulus);
+                int tmp = myPowerCom.get(str);
+                //System.out.println(str);
+                sum += ((bytes[i] % modulus) * (tmp)) % modulus;
+                //System.out.println(Integer.toString((int)bytes[i])+" "+Integer.toString(tmp)+" "+Integer.toString(sum));
             }
             sum %= modulus;
             result = sum;
         } else {
+            String str = new String(Integer.toString(base)+" "+Integer.toString(minChSize)+" "+Integer.toString(modulus));
+            int tmp = (int)myPowerCom.get(str);
             result = ((((base % modulus) * (prev % modulus)) % modulus)
-                        - ((power(base,minChSize,modulus) * (bytes[0] % modulus)) % modulus)
+                        - ((tmp * (bytes[0] % modulus)) % modulus)
                         + (bytes[minChSize-1] % modulus)) % modulus;
         }
 
@@ -519,7 +536,8 @@ public class MyDedup {
                     StringBuffer sbZeros = new StringBuffer();
                     ArrayList<ByteArrayEntry> list = new ArrayList<ByteArrayEntry>();
                     MessageDigest md = MessageDigest.getInstance("SHA-256");
-                    byte[] rdBuffer = new byte[minChSize*2];
+                    getPowerCom(winSize, base, modulus);
+                    byte[] rdBuffer = new byte[minChSize*4];
                     int rdBufLen=is.read(rdBuffer);
                     int rdBufIndex=0;
 
@@ -545,16 +563,18 @@ public class MyDedup {
                                         System.arraycopy(temp_buff, 0, rdBuffer, 0, rdBufLen-rdBufIndex);
                                         resLen = rdBufLen-rdBufIndex;
                                         byte[] tmp_rest = new byte[rdBufIndex];
-                                        rdBufLen=is.read(tmp_rest);
+                                        int tmpBufLen=is.read(tmp_rest);
 
 
-                                        if (rdBufLen!=-1) {
-                                            //System.out.println(Integer.toString(rdBufLen)+" "+Integer.toString(rdBufIndex));
-                                            System.arraycopy(tmp_rest, 0, rdBuffer, rdBufLen-rdBufIndex, rdBufIndex);
-                                            rdBufLen += rdBufLen-rdBufIndex;
+                                        if (tmpBufLen!=-1) {
+                                            //System.out.print(" "+Integer.toString(rdBufLen)+" "+Integer.toString(rdBufIndex));
+                                            System.arraycopy(tmp_rest, 0, rdBuffer, rdBufLen-rdBufIndex, tmpBufLen);
+                                            rdBufLen = rdBufLen - rdBufIndex + tmpBufLen;
+                                            resLen += tmpBufLen;
                                             if (rdBufLen < winSize) resLen = rdBufLen;
                                             else resLen = winSize;
-                                        }
+                                        } else rdBufLen=-1;
+                                        //System.out.print("\n");
                                         rdBufIndex=0;
                                     }
                                     //System.out.println(Integer.toString(rdBufIndex)+ " "+Integer.toString(resLen));

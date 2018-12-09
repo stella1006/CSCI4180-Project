@@ -253,7 +253,7 @@ class Indexing {
             ArrayList<ByteArrayEntry> list = this.fileRecipe.get(filename);
             StringBuffer sb = new StringBuffer();
             FileOutputStream fw = new FileOutputStream(output_name);
-            System.out.println(output_name);
+            //System.out.println(output_name);
 
             if (mode.equals("azure")) {
                 try {
@@ -481,28 +481,47 @@ public class MyDedup {
         //return res;
     }
 
+    public static int getMod(int a, int m) {
+        int res = a % m;
+        if (res < 0) res += m;
+        return res;
+    }
+
+    public static void toUnsignedInt(byte bytes[], int len, int res[]) {
+        for (int i = 0; i < len; i++) {
+            res[i] = bytes[i] & 0xFF;
+        }
+    }
+
     public static int RFPAlgoritm(byte bytes[], int index, int prev, int minChSize, int base, int modulus) {
         int result = 0;
+        int[] conv = new int[minChSize];
+        toUnsignedInt(bytes, minChSize, conv);
         if (index == 0) {
             int sum = 0;
             for (int i = 0; i < minChSize; i++) {
                 String str = Integer.toString(base)+" "+Integer.toString(minChSize-i-1)+" "+Integer.toString(modulus);
                 int tmp = myPowerCom.get(str);
                 //System.out.println(str);
-                sum += ((bytes[i] % modulus) * (tmp)) % modulus;
-                //System.out.println(Integer.toString((int)bytes[i])+" "+Integer.toString(tmp)+" "+Integer.toString(sum));
+                int tmm1 = getMod((getMod(conv[i], modulus) * (tmp)), modulus);
+                if (tmm1 < 0) tmm1 += modulus;
+                sum += tmm1;
+                //System.out.println(Integer.toString(index)+" "+Integer.toString((int)conv[i])+" "+Integer.toString(tmp)+" "+Integer.toString(sum));
             }
-            sum %= modulus;
+            sum = getMod(sum,modulus);
             result = sum;
         } else {
             String str = new String(Integer.toString(base)+" "+Integer.toString(minChSize)+" "+Integer.toString(modulus));
             int tmp = (int)myPowerCom.get(str);
-            result = ((((base % modulus) * (prev % modulus)) % modulus)
-                        - ((tmp * (bytes[0] % modulus)) % modulus)
-                        + (bytes[minChSize-1] % modulus)) % modulus;
+            int first = getMod((getMod(base, modulus) * getMod(prev, modulus)), modulus);
+            int sec = getMod((tmp * getMod(conv[0], modulus)), modulus);
+            int third = getMod(conv[minChSize-1], modulus);
+            result = getMod((first - sec + third), modulus);
+            //System.out.println(Integer.toString(index)+" "+Integer.toString((int)conv[0])+" "+Integer.toString((int)conv[minChSize-1])+" "+Integer.toString((int)conv[minChSize-1])+" "+Integer.toString(first)+" "+Integer.toString(sec)+" "+Integer.toString(third)+" "+Integer.toString(tmp)+" "+Integer.toString(result));
         }
 
         return result;
+
     }
 
     public static boolean byteArrayCheck(final byte[] array, int fir, int sec) {
@@ -633,6 +652,7 @@ public class MyDedup {
 
 
             RFPValue = RFPAlgoritm(windows, pos, prev, winSize, base, modulus);
+            //System.out.println(RFPValue);
             // if (RFPValue == 0) {
             //     //System.out.println(RFPValue);
             //     for (int i = 0; i < 16; i++) {

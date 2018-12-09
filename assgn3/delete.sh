@@ -1,14 +1,14 @@
 
 
-./run.sh de test/hello.txt
-./run.sh de test/IntegratedPros.txt
-./run.sh de test/aaa.bin
-./run.sh de test/hellotest.txt
-./run.sh de test/test.txt
-./run.sh de test/test_1.txt
+./run.sh de test/hello.txt $1
+./run.sh de test/IntegratedPros.txt $1
+./run.sh de test/aaa.bin $1
+./run.sh de test/hellotest.txt $1
+./run.sh de test/test.txt $1
+./run.sh de test/test_1.txt $1
 #
-# ./run.sh de test/hello.txt
-# ./run.sh de test/hellotest.txt
-# ./run.sh de test/test.txt
-# ./run.sh de test/test_1.txt
-# ./run.sh de test/test_zero.txt
+# ./run.sh de test/hello.txt $1
+# ./run.sh de test/hellotest.txt $1
+# ./run.sh de test/test.txt $1
+# ./run.sh de test/test_1.txt $1
+# ./run.sh de test/test_zero.txt $1
