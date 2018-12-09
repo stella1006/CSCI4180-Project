@@ -1,8 +1,9 @@
 
-if [ "$1" = "upload" ]; then
-    time java -cp .:./lib/* MyDedup upload 10240 15000 20480 128 $2 local
-elif [ "$1" = "download" ]; then
-    time java -cp .:./lib/* MyDedup download $2 $3 local
-elif [ "$1" = "delete" ]; then
-    time java -cp .:./lib/* MyDedup delete $2 local
+if [ "$1" = "up" ]; then
+    java -cp .:./lib/* MyDedup upload 16 128 256 64 $2 $3
+elif [ "$1" = "do" ]; then
+    time java -cp .:./lib/* MyDedup download $2 $3 $4
+    diff $2 $3
+elif [ "$1" = "de" ]; then
+    time java -cp .:./lib/* MyDedup delete $2 $3
 fi

@@ -74,12 +74,12 @@ class Indexing {
         return this.WithoutDepu;
     }
 
-    void updateCheckSumMap(String storageConnectionString, ByteArrayEntry res, int numOfZero, String mode)  throws IOException {
+    void updateCheckSumMap(ByteArrayEntry res, int numOfZero)  throws IOException {
         if (numOfZero == 0) {
             if (!this.checkSumMap.containsKey(res.shaString)) {
                 this.checkSumMap.put(res.shaString,1);
                 this.NumOfCheckSum++;
-                uploadChunk(storageConnectionString, "./data/", res, mode);
+                uploadChunk("./data/", res);
             } else {
                 int no = this.checkSumMap.get(res.shaString)+1;
                 this.checkSumMap.put(res.shaString,no);
@@ -246,104 +246,45 @@ class Indexing {
 
     }
 
-    void reconstructFile(String storageConnectionString, String path, String filename, String output_name, String mode) throws IOException {
+    void reconstructFile(String path, String filename, String output_name) throws IOException {
         if (!this.fileRecipe.containsKey(filename)) {
-            System.out.println(filename + " has not been uploaded");
+            System.out.println(filename + "has not been uploaded");
         } else {
             ArrayList<ByteArrayEntry> list = this.fileRecipe.get(filename);
             StringBuffer sb = new StringBuffer();
             FileOutputStream fw = new FileOutputStream(output_name);
-            System.out.println(output_name);
-
-            if (mode.equals("azure")) {
-                try {
-                    CloudStorageAccount storageAccount = CloudStorageAccount.parse(storageConnectionString);
-                    CloudBlobClient blobClient = storageAccount.createCloudBlobClient();
-                    CloudBlobContainer container = blobClient.getContainerReference("mycontainer");
-                    container.createIfNotExists();
-                    for (ByteArrayEntry chk: list) {
-                        if (this.zeroChunks.containsKey(chk.shaString)) {
-                            int numOfZero = ((ArrayList<Integer>)zeroChunks.get(chk.shaString)).get(0);
-                            for (int i = 0; i < numOfZero; i++) {
-                                fw.write('\0');
-                            }
-                        } else {
-                            String input_name = path + chk.shaString;
-                            CloudBlockBlob blob = container.getBlockBlobReference(chk.shaString);
-                            // blob.download(new FileOutputStream(input_name));
-                            // BlobInputStream blobInputStream = blob.openInputStream();
-                            ByteArrayOutputStream outStream = new ByteArrayOutputStream();
-                            //System.output(chk.shaString);
-                        	blob.download(outStream);
-                        	byte[] byteData = outStream.toByteArray();
-                            fw.write(byteData);
-                            // blobInputStream.close();
-                        }
+            for (ByteArrayEntry chk: list) {
+                if (this.zeroChunks.containsKey(chk.shaString)) {
+                    int numOfZero = ((ArrayList<Integer>)zeroChunks.get(chk.shaString)).get(0);
+                    for (int i = 0; i < numOfZero; i++) {
+                        sb.append('\0');
                     }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-
-            } else {
-                for (ByteArrayEntry chk: list) {
-                    if (this.zeroChunks.containsKey(chk.shaString)) {
-                        int numOfZero = ((ArrayList<Integer>)zeroChunks.get(chk.shaString)).get(0);
-                        for (int i = 0; i < numOfZero; i++) {
-                            fw.write('\0');
-                        }
-                    } else {
-                        String input_name = path + chk.shaString;
-                        try {
-                            File file = new File(input_name);
-                			InputStream is = new BufferedInputStream(new FileInputStream(file));
-                			byte[] bytes = new byte[(int)file.length()];
-                            int len = is.read(bytes);
-                			is.close();
-                            if (len>0 && bytes != null) fw.write(bytes);
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
+                } else {
+                    String input_name = path + chk.shaString;
+                    File file = new File(input_name);
+        			InputStream is = new BufferedInputStream(new FileInputStream(file));
+        			byte[] bytes = new byte[(int)file.length()];
+                    int len = is.read(bytes);
+        			is.close();
+                    if (len>0 && bytes != null) fw.write(bytes);
                 }
             }
             fw.close();
         }
     }
 
-    void uploadChunk(String storageConnectionString, String path, ByteArrayEntry byteEntry, String mode) throws IOException {
+    void uploadChunk(String path, ByteArrayEntry byteEntry) throws IOException {
         this.NumOfPysical++;
         this.WithDepu += byteEntry.byteLength;
-        //System.out.println(mode);
-        if (mode.equals("azure")) {
-            try {
-                //System.out.println(storageConnectionString);
-                // Retrieve storage account from connection-string.
-                CloudStorageAccount storageAccount = CloudStorageAccount.parse(storageConnectionString);
-                CloudBlobClient blobClient = storageAccount.createCloudBlobClient();
-                CloudBlobContainer container = blobClient.getContainerReference("mycontainer");
-                container.createIfNotExists();
-                // Create or overwrite the remoteFileName blob with contents from a local file.
-                CloudBlockBlob blob = container.getBlockBlobReference(byteEntry.shaString);
-
-                BlobOutputStream blobOutputStream = blob.openOutputStream();
-                blobOutputStream.write(byteEntry.btArr);
-                blobOutputStream.close();
-                // File source = new File(output_name);
-                // blob.upload(new FileInputStream(source), source.length());
-                //source.delete();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        } else {
-            String output_name = path +  byteEntry.shaString;
-            FileOutputStream fileOuputStream = new FileOutputStream(output_name);
-            fileOuputStream.write(byteEntry.btArr);
-            fileOuputStream.close();
-        }
-
+        String output_name = path +  byteEntry.shaString;
+        //FileWriter fw = new FileWriter(output_name);
+        FileOutputStream fileOuputStream = new FileOutputStream(output_name);
+        fileOuputStream.write(byteEntry.btArr);
+        //fw.write(new String(byteEntry.btArr, "ISO-8859-1"));
+        fileOuputStream.close();
     }
 
-    void deleteFile(String storageConnectionString, String path, String filename, String mode) {
+    void deleteFile(String path, String filename) {
         if (!this.fileRecipe.containsKey(filename)) {
             System.out.println(filename + " has not been uploaded");
         } else {
@@ -373,21 +314,6 @@ class Indexing {
                         String file_name = path +  chk.shaString;
                         File file = new File(file_name);
                         file.delete();
-                        if (mode.equals("azure")) {
-                            // Retrieve storage account from connection-string.
-                            try {
-                                CloudStorageAccount storageAccount = CloudStorageAccount.parse(storageConnectionString);
-                                CloudBlobClient blobClient = storageAccount.createCloudBlobClient();
-                                CloudBlobContainer container = blobClient.getContainerReference("mycontainer");
-                                container.createIfNotExists();
-
-                                CloudBlockBlob blob = container.getBlockBlobReference(chk.shaString);
-                                blob.deleteIfExists();
-                            } catch (Exception e) {
-                                e.printStackTrace();
-                            }
-
-                        }
                     }
                 }
             }
@@ -420,8 +346,7 @@ class Indexing {
 }
 
 public class MyDedup {
-    public static final String storageConnectionString = "DefaultEndpointsProtocol=https;AccountName=csci4180group8;AccountKey=5N448nyJbNBCvK9rsxG/luyt6kA7qIzYfWeH652qdP0KEm/ptPefpwsTTYVYJekpVmdkoM0EDWrrMco5QPsx+Q==;EndpointSuffix=core.windows.net";
-    public static HashMap<String, Integer>  myPowerCom = new HashMap<String, Integer>();
+    public static final String storageConnectionString = "";
 
     static {
       System.setProperty("https.proxyHost", "proxy.cse.cuhk.edu.hk");
@@ -470,35 +395,19 @@ public class MyDedup {
         }
         return res;
     }
-    public static void getPowerCom(int minChSize, int base, int modulus) {
-        //HashMap<String, Integer> res = new HashMap<String, Integer>();
-        for (int i = 0; i <= minChSize; i++) {
-            int temp = power(base, minChSize-i, modulus);
-            String str = Integer.toString(base)+" "+Integer.toString(minChSize-i)+" "+Integer.toString(modulus);
-            //System.out.println(str+" "+Integer.toString(temp));
-            myPowerCom.put(str, temp);
-        }
-        //return res;
-    }
 
     public static int RFPAlgoritm(byte bytes[], int index, int prev, int minChSize, int base, int modulus) {
         int result = 0;
         if (index == 0) {
             int sum = 0;
             for (int i = 0; i < minChSize; i++) {
-                String str = Integer.toString(base)+" "+Integer.toString(minChSize-i-1)+" "+Integer.toString(modulus);
-                int tmp = myPowerCom.get(str);
-                //System.out.println(str);
-                sum += ((bytes[i] % modulus) * (tmp)) % modulus;
-                //System.out.println(Integer.toString((int)bytes[i])+" "+Integer.toString(tmp)+" "+Integer.toString(sum));
+                sum += ((bytes[i] % modulus) * (power(base, minChSize-i-1, modulus))) % modulus;
             }
             sum %= modulus;
             result = sum;
         } else {
-            String str = new String(Integer.toString(base)+" "+Integer.toString(minChSize)+" "+Integer.toString(modulus));
-            int tmp = (int)myPowerCom.get(str);
             result = ((((base % modulus) * (prev % modulus)) % modulus)
-                        - ((tmp * (bytes[0] % modulus)) % modulus)
+                        - ((power(base,minChSize,modulus) * (bytes[0] % modulus)) % modulus)
                         + (bytes[minChSize-1] % modulus)) % modulus;
         }
 
@@ -539,141 +448,37 @@ public class MyDedup {
         ByteArrayEntry res = new ByteArrayEntry(bytesChk, sb2.toString());
         return res;
     }
-
-    public static void OperationUpload(int minChSize, int modulus, int maxChSize, int base, String fileToUpload, String mode, String indexFileName) throws Exception{
-        //get mydedup.index, or create a new one
-        Indexing indexing = new Indexing();
-        indexing.loadIndexing(indexFileName);
-        if (indexing.chechFileExist(fileToUpload)) System.exit(1);
-        File file = new File(fileToUpload);
-        //BufferedReader is = new BufferedReader(new InputStreamReader(new FileInputStream(file),"UTF16"));
-        InputStream is = new BufferedInputStream(new FileInputStream(file));
-        byte[] bufferMax = new byte[maxChSize];
-        byte[] windows = new byte[minChSize];
-        byte[] sByte = new byte[1];
-        int rLen = -1, pos = 0, prev = 0, RFPValue = 0, index = 0;
-        int allLen = -1, fir = 0, winSize = minChSize;
-        boolean lastChunk = true, lastZero = false, isEnd = false;
-        StringBuffer sbZeros = new StringBuffer();
-        ArrayList<ByteArrayEntry> list = new ArrayList<ByteArrayEntry>();
-        MessageDigest md = MessageDigest.getInstance("SHA-256");
-        getPowerCom(winSize, base, modulus);
-
-        while (true) {
-            // System.out.println("ZZ");
-            if (lastChunk == true) {
-                // System.out.println("ZZ1");
-                Arrays.fill(bufferMax, (byte)0);
-                Arrays.fill(windows, (byte)0);
-                allLen = winSize;
-                fir = 0;
-                if (!lastZero) {
-                    if((rLen = is.read(windows))!=-1) {
-                        //System.out.println(new String(windows));
-                        winSize = rLen;
-                        System.arraycopy(windows, 0, bufferMax, 0, winSize);
-                        allLen = rLen;
-                        fir = 0;
-                        lastChunk = false;
-                    } else break;
-                } else {
-                    lastZero = false;
-                    allLen = 1;
-                    windows[0] = sByte[0];
-                    bufferMax[0] = sByte[0];
-                    byte[] temp = new byte[winSize-1];
-                    if((rLen = is.read(temp))!=-1) {
-                        lastChunk = false;
-                        System.arraycopy(temp, 0, bufferMax, 1, rLen);
-                        System.arraycopy(temp, 0, windows, 1, rLen);
-                        winSize = rLen + 1;
-                        allLen = rLen + 1;
-                        fir = 0;
-                    } else {
-                        ByteArrayEntry res = chunking(md, bufferMax, 0, allLen-1);
-                        list.add(res);
-                        indexing.updateCheckSumMap(storageConnectionString, res, 0, mode);
-                        break;
-                    }
-                }
-            } else {
-                if (lastZero == true) {
-                    lastZero = false;
-                    sbZeros.append((new String(bufferMax)).substring(0,allLen));
-                    int tpp=0;
-                    while ((rLen = is.read(sByte))!=-1) {
-                        if (sByte[0] == '\0') {
-                            // System.out.println(Integer.toString(++tpp));
-                            sbZeros.append(new String(sByte));
-                        } else break;
-                    }
-                    //chunking
-                    lastChunk = true;
-                    byte[] zeros = sbZeros.toString().getBytes();
-                    ByteArrayEntry res = chunking(md, zeros, 0, zeros.length-1);
-                    list.add(res);
-                    indexing.updateCheckSumMap(storageConnectionString, res, zeros.length, mode);
-                    //read EOF
-                    if (rLen == -1) break;
-                } else {
-                    if((rLen = is.read(sByte))!=-1) {
-                        bufferMax[allLen++] = sByte[0];
-                        System.arraycopy(bufferMax, ++fir, windows, 0, winSize);
-                    } else {
-                        // System.out.println(Integer.toString(22));
-                        ByteArrayEntry res = chunking(md, bufferMax, 0, allLen-1);
-                        list.add(res);
-                        indexing.updateCheckSumMap(storageConnectionString, res, 0, mode);
-                        break;
-                    }
-                }
-
-
-            }
-
-
-            RFPValue = RFPAlgoritm(windows, pos, prev, winSize, base, modulus);
-            // if (RFPValue == 0) {
-            //     //System.out.println(RFPValue);
-            //     for (int i = 0; i < 16; i++) {
-            //         System.out.print(Integer.toString((int)windows[i]));
-            //         System.out.print(" ");
-            //     }
-            //     System.out.print("\n");
-            // }
-
-            prev = RFPValue;
-            //oxFF
-            if ((RFPValue & (modulus-1)) == 0 || allLen == maxChSize) {
-                //zero Chunks
-                if (byteArrayCheck(bufferMax, 0, allLen-1)) {
-                    lastZero = true;
-                    // System.out.println("XX");
-                } else {
-                    pos = 0;
-                    lastChunk = true;
-                    // System.out.println("normal");
-                    ByteArrayEntry res = chunking(md, bufferMax, 0, allLen-1);
-                    list.add(res);
-                    //update indexing
-                    indexing.updateCheckSumMap(storageConnectionString, res, 0, mode);
-                }
-            } else {
-                lastChunk = false;
-                pos++;
-            }
-            // }
-        }
-        is.close();
-        indexing.updateFileRecipe(fileToUpload, list);
-        //fr.saveFileChunks("./data/", fileToUpload);
-        indexing.saveIndexing(indexFileName);
-        //indexing.reconstructFile("./data/", fileToUpload, "./construction.txt");
-
-        //Report output:
-        System.out.println(fileToUpload);
-        indexing.getReport();
-    }
+    // public static int readFromBuffer(byte[] rdBuffer, int[] rd, byte[] windows, int winSize, InputStream is) {
+    //     //rdBufLen: rdBufLen, rdBufIndex: rdBufIndex
+    //     int resLen=-1;
+    //     int rdSize = winSize;
+    //
+    //         if(rdBufLen!=-1) {
+    //             // if (rdBufIndex + rdSize > rdBufLen) {
+    //             //     //copy the rest bytes
+    //             //     byte[] temp_buff = new byte[rdBufLen-rdBufIndex];
+    //             //     System.arraycopy(rdBuffer, rdBufIndex, temp_buff, 0, rdBufLen-rdBufIndex);
+    //             //     //clear bytes and read new bytes from file
+    //             //     Arrays.fill(rdBuffer, (byte)0);
+    //             //     System.arraycopy(temp_buff, 0, rdBuffer, 0, rdBufLen-rdBufIndex);
+    //             //     byte[] tmp_rest = new byte[rdBufIndex];
+    //             //     rdBufLen=is.read(tmp_rest);
+    //             //     System.arraycopy(tmp_rest, 0, rdBuffer, rdBufLen-rdBufIndex, rdBufIndex);
+    //             //
+    //             //     if (rdBufLen!=-1) {
+    //             //         rdBufLen += rdBufLen-rdBufIndex;
+    //             //         if (resLen < rdSize) resLen = rdBufLen;
+    //             //         else resLen = rdSize;
+    //             //     } else {
+    //             //         resLen = -1;
+    //             //     }
+    //             //     rdBufIndex=0;
+    //             // }
+    //             System.arraycopy(rdBuffer, rdBufIndex, windows, 0, rdSize);
+    //             rdBufIndex += resLen;
+    //         }
+    //     return resLen;
+    // }
 
     public static void main(String[] args) {
         if (args.length < 1) {
@@ -682,7 +487,7 @@ public class MyDedup {
         }
 
         String operation = args[0];
-        String indexFileName = "./mydedup.index";
+        String indexFileName = "mydedup.index";
         try {
             if (operation.equals("upload")) {
                 if (args.length < 7) {
@@ -698,8 +503,163 @@ public class MyDedup {
                 String mode = args[6];
 
                 try {
-                    OperationUpload(minChSize, modulus, maxChSize, base, fileToUpload, mode, indexFileName);
+                    //get mydedup.index, or create a new one
+                    Indexing indexing = new Indexing();
+                    indexing.loadIndexing(indexFileName);
+                    if (indexing.chechFileExist(fileToUpload)) System.exit(1);
+                    File file = new File(fileToUpload);
+                    //BufferedReader is = new BufferedReader(new InputStreamReader(new FileInputStream(file),"UTF16"));
+                    InputStream is = new BufferedInputStream(new FileInputStream(file));
+                    byte[] bufferMax = new byte[maxChSize];
+                    byte[] windows = new byte[minChSize];
+                    byte[] sByte = new byte[1];
+                    int rLen = -1, pos = 0, prev = 0, RFPValue = 0, index = 0;
+                    int allLen = -1, fir = 0, winSize = minChSize;
+                    boolean lastChunk = true, lastZero = false, isEnd = false;
+                    StringBuffer sbZeros = new StringBuffer();
+                    ArrayList<ByteArrayEntry> list = new ArrayList<ByteArrayEntry>();
+                    MessageDigest md = MessageDigest.getInstance("SHA-256");
+                    byte[] rdBuffer = new byte[minChSize*2];
+                    int rdBufLen=is.read(rdBuffer);
+                    int rdBufIndex=0;
 
+                    while (true) {
+                        // System.out.println("ZZ");
+                        if (lastChunk == true) {
+                            // System.out.println("ZZ1");
+                            Arrays.fill(bufferMax, (byte)0);
+                            Arrays.fill(windows, (byte)0);
+                            allLen = winSize;
+                            fir = 0;
+                            //read New from Buffer
+                            int resLen = winSize;
+                            //int rdSize = winSize;
+                            {
+                                if(rdBufLen!=-1) {
+                                    if (rdBufIndex + winSize > rdBufLen) {
+                                        //copy the rest bytes
+                                        byte[] temp_buff = new byte[rdBufLen-rdBufIndex];
+                                        System.arraycopy(rdBuffer, rdBufIndex, temp_buff, 0, rdBufLen-rdBufIndex);
+                                        //clear bytes and read new bytes from file
+                                        Arrays.fill(rdBuffer, (byte)0);
+                                        System.arraycopy(temp_buff, 0, rdBuffer, 0, rdBufLen-rdBufIndex);
+                                        resLen = rdBufLen-rdBufIndex;
+                                        byte[] tmp_rest = new byte[rdBufIndex];
+                                        rdBufLen=is.read(tmp_rest);
+
+
+                                        if (rdBufLen!=-1) {
+                                            //System.out.println(Integer.toString(rdBufLen)+" "+Integer.toString(rdBufIndex));
+                                            System.arraycopy(tmp_rest, 0, rdBuffer, rdBufLen-rdBufIndex, rdBufIndex);
+                                            rdBufLen += rdBufLen-rdBufIndex;
+                                            if (rdBufLen < winSize) resLen = rdBufLen;
+                                            else resLen = winSize;
+                                        }
+                                        rdBufIndex=0;
+                                    }
+                                    //System.out.println(Integer.toString(rdBufIndex)+ " "+Integer.toString(resLen));
+                                    System.arraycopy(rdBuffer, rdBufIndex, windows, 0, resLen);
+                                    rdBufIndex += resLen;
+                                }
+                            }
+                            rLen = resLen;
+                            allLen = rLen;
+                            if(rLen !=-1) {
+                                //System.out.println(new String(windows));
+                                winSize = rLen;
+                                System.arraycopy(windows, 0, bufferMax, 0, winSize);
+                                allLen = rLen;
+                                fir = 0;
+                                lastChunk = false;
+                            } else break;
+                        } else {
+                            if (lastZero == true) {
+                                //System.out.println(allLen);
+                                lastZero = false;
+                                sbZeros.append((new String(bufferMax)).substring(0,allLen));
+                                int tpp=0;
+                                // while ((rLen = is.read(sByte))!=-1) {
+                                while (rdBufIndex < rdBufLen) {
+                                    if (rdBuffer[rdBufIndex] == '\0') {
+                                        // System.out.println(Integer.toString(++tpp));
+                                        sbZeros.append(new String("\0"));
+                                    } else {
+                                        break;
+                                    }
+                                    rdBufIndex++;
+                                    if (rdBufIndex == rdBufLen) {
+                                        Arrays.fill(rdBuffer, (byte)0);
+                                        rLen=rdBufLen=is.read(rdBuffer);
+                                        rdBufIndex = 0;
+                                        if (rdBufLen == -1) break;
+                                    }
+                                }
+                                //chunking
+                                lastChunk = true;
+                                byte[] zeros = sbZeros.toString().getBytes();
+                                ByteArrayEntry res = chunking(md, zeros, 0, zeros.length-1);
+                                list.add(res);
+                                indexing.updateCheckSumMap(res, zeros.length);
+                                //read EOF
+                                if (rLen == -1) break;
+                                continue;
+                            } else {
+                                if (rdBufIndex < rdBufLen) {
+                                    sByte[0] = rdBuffer[rdBufIndex++];
+                                    rLen=1;
+                                } else {
+                                    Arrays.fill(rdBuffer, (byte)0);
+                                    rLen=rdBufLen=is.read(rdBuffer);
+                                    rdBufIndex = 0;
+                                    if (rdBufLen != -1) sByte[0] = rdBuffer[rdBufIndex++];;
+                                }
+                                if(rLen !=-1) {
+                                    bufferMax[allLen++] = sByte[0];
+                                    System.arraycopy(bufferMax, ++fir, windows, 0, winSize);
+                                } else {
+                                    // System.out.println(Integer.toString(22));
+                                    ByteArrayEntry res = chunking(md, bufferMax, 0, allLen-1);
+                                    list.add(res);
+                                    indexing.updateCheckSumMap(res, 0);
+                                    break;
+                                }
+                            }
+
+
+                        }
+
+                        RFPValue = RFPAlgoritm(windows, pos, prev, winSize, base, modulus);
+                        prev = RFPValue;
+
+                        if ((RFPValue & 0xFF) == 0 || allLen == maxChSize) {
+                            //zero Chunks
+                            if (byteArrayCheck(bufferMax, 0, allLen-1)) {
+                                lastZero = true;
+                                // System.out.println("XX");
+                            } else {
+                                pos = 0;
+                                lastChunk = true;
+                                // System.out.println("normal");
+                                ByteArrayEntry res = chunking(md, bufferMax, 0, allLen-1);
+                                list.add(res);
+                                //update indexing
+                                indexing.updateCheckSumMap(res, 0);
+                            }
+                        } else {
+                            lastChunk = false;
+                            pos++;
+                        }
+                        // }
+                    }
+                    is.close();
+                    indexing.updateFileRecipe(fileToUpload, list);
+                    //fr.saveFileChunks("./data/", fileToUpload);
+                    indexing.saveIndexing(indexFileName);
+                    //indexing.reconstructFile("./data/", fileToUpload, "./construction.txt");
+
+                    //Report output:
+                    System.out.println(fileToUpload);
+                    indexing.getReport();
                 } catch (FileNotFoundException e) {
         			e.printStackTrace();
         		} catch (IOException e) {
@@ -718,7 +678,7 @@ public class MyDedup {
                 try {
                     Indexing indexing = new Indexing();
                     indexing.loadIndexing(indexFileName);
-                    indexing.reconstructFile(storageConnectionString, "./data/", fileToDownload, output_name, mode);
+                    indexing.reconstructFile("./data/", fileToDownload, output_name);
                 } catch (FileNotFoundException e) {
         			e.printStackTrace();
         		} catch (IOException e) {
@@ -737,9 +697,9 @@ public class MyDedup {
                 try {
                     Indexing indexing = new Indexing();
                     indexing.loadIndexing(indexFileName);
-                    indexing.deleteFile(storageConnectionString, "./data/", fileToDelete, mode);
+                    indexing.deleteFile("./data/", fileToDelete);
                     indexing.saveIndexing(indexFileName);
-                    //indexing.getReport();
+                    indexing.getReport();
 
                 } catch (FileNotFoundException e) {
         			e.printStackTrace();
